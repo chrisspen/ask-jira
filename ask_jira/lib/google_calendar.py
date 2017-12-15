@@ -1,11 +1,10 @@
 from __future__ import print_function
-import httplib2
 import re
-import os
 import sys
 import datetime
 from functools import total_ordering
 
+import httplib2
 import dateutil.parser
 
 from jira.exceptions import JIRAError
@@ -71,7 +70,7 @@ def import_worklogs(jira, worklogconfig, calendar_name, from_day, to_day):
 
     return sum(durations, datetime.timedelta(0))
 
-JIRA_ISSUE_REGEX = re.compile('[A-Z]+-\d+')
+JIRA_ISSUE_REGEX = re.compile(r'[A-Z]+-\d+')
 
 @total_ordering
 class Worklog(object):
@@ -148,4 +147,3 @@ def _get_credentials(conf):
         credentials = tools.run_flow(flow, store)
         print('Storing Google Calendar credentials to', conf.CREDENTIAL_FILE)
     return credentials
-

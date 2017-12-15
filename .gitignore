@@ -4,3 +4,5 @@ jiraconfig.py
 exportimportconfig.py
 worklogconfig.py
 venv/
+*.geany
+*.out

@@ -1,25 +1,36 @@
 #!/usr/bin/env python
-
+# pylint: disable=wrong-import-position
 from __future__ import print_function
 
 import sys
 import pprint
 import argparse
 import inspect
-from jira.client import JIRA
+import datetime
 
-from lib import timetracking
-from lib import subissues
-from lib import export_import
-from lib import google_calendar
-from utils.smart_argparse_formatter import SmartFormatter
+sys.path.append('..')
 
-import jiraconfig as conf
+from ask_jira.lib import timetracking
+from ask_jira.lib import subissues
+from ask_jira.lib import export_import
+from ask_jira.lib import google_calendar
+from ask_jira.utils.smart_argparse_formatter import SmartFormatter
+from ask_jira.lib.core import get_jira
 
 # helpers
 
 def _make_jql_argument_parser(parser):
     parser.add_argument("jql", help="the JQL query used in the command")
+    parser.add_argument('--verbose', default=False, action='store_true', help='If given, shows extra status information.')
+    parser.add_argument('--assignee-field', help='The field name to use to read assignee user.')
+    parser.add_argument('--assignable-users', help='A comma delimited list of users that can be assigned to.')
+    return parser
+
+def _make_jql_date_range_argument_parser(parser):
+    parser.add_argument("jql", help="the JQL query used in the command")
+    parser.add_argument("start_date", type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), help="the start date to filter results by")
+    parser.add_argument("end_date", type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), help="the end date to filter results by")
+    parser.add_argument('--verbose', default=False, action='store_true', help='If given, shows extra status information.')
     return parser
 
 # commands
@@ -43,6 +54,36 @@ def sum_timetracking_for_jql(jira, args):
 
 sum_timetracking_for_jql.argparser = _make_jql_argument_parser
 
+def sum_assigned_hours_by_user_for_jql(jira, args):
+    """
+    Sums all hours assigned to each user.
+    """
+    results = timetracking.sum_assigned_hours_by_user_for_jql(jira, args.jql, verbose=args.verbose, assignee_field=args.assignee_field)
+    pprint.pprint(results)
+
+sum_assigned_hours_by_user_for_jql.argparser = _make_jql_argument_parser
+
+def auto_assign_issues_for_jql(jira, args):
+    """
+    Auto assigns issues to users.
+    """
+    timetracking.auto_assign_issues_for_jql(jira, args.jql, verbose=args.verbose, assignee_field=args.assignee_field, assignable_users=args.assignable_users)
+
+auto_assign_issues_for_jql.argparser = _make_jql_argument_parser
+
+def sum_worklogs_by_user_for_jql(jira, args):
+    """Sum original estimate, time spent
+    and time remaining by user for all worklogs that match the given JQL query"""
+    results = timetracking.sum_worklogs_by_user_for_jql(jira, args.jql, args.start_date, args.end_date, verbose=args.verbose)
+    pprint.pprint(results)
+
+sum_worklogs_by_user_for_jql.argparser = _make_jql_date_range_argument_parser
+
+def set_story_points_from_hours(jira, args):
+    timetracking.set_story_points_from_hours(jira, args.jql, verbose=args.verbose)
+
+set_story_points_from_hours.argparser = _make_jql_argument_parser
+
 def list_epics_stories_and_tasks_for_jql(jira, args):
     """Print a Markdown-compatible tree of epics,
     stories and subtasks that match the given JQL query"""
@@ -54,7 +95,7 @@ list_epics_stories_and_tasks_for_jql.argparser = _make_jql_argument_parser
 def export_import_issues_for_jql(jira, args):
     """Export issues from one JIRA instance
     to another with comments and attachments"""
-    import exportimportconfig
+    import exportimportconfig # pylint: disable=import-error
     exported_issues = export_import.export_import_issues(jira,
             exportimportconfig, args.jql)
     print('Successfully imported', exported_issues)
@@ -64,7 +105,7 @@ export_import_issues_for_jql.argparser = _make_jql_argument_parser
 def import_worklogs_from_google_calendar(jira, args):
     """Import worklog entries from Google Calendar
     to corresponding JIRA tasks"""
-    import worklogconfig
+    import worklogconfig # pylint: disable=import-error
     hours = google_calendar.import_worklogs(jira, worklogconfig,
             args.calendar, args.fromdate, args.todate)
     print('Logged', hours, 'hours')
@@ -85,8 +126,7 @@ import_worklogs_from_google_calendar.argparser = _import_worklogs_argument_parse
 def _main():
     command_name, command = _get_command()
     args = _parse_command_specific_arguments(command_name, command)
-    jira = JIRA({'server': conf.JIRA['server']}, # add 'verify': False if HTTPS cert is untrusted
-                basic_auth=(conf.JIRA['user'], conf.JIRA['password']))
+    jira = get_jira()
     command(jira, args)
 
 # helpers

@@ -82,7 +82,7 @@ def _set_epic_link(new_issue, old_issue, conf, source_jira, target_jira):
     source_epic_key = getattr(old_issue.fields, conf.SOURCE_EPIC_LINK_FIELD_ID)
     if not source_epic_key:
         return
-    global _g_epic_map
+    global _g_epic_map # pylint: disable=global-statement
     if source_epic_key not in _g_epic_map:
         source_epic = source_jira.issue(source_epic_key)
         epic_fields = _get_new_issue_fields(source_epic.fields, conf)
